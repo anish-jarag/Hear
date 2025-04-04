@@ -20,7 +20,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool isRecording = false;
-  bool isModelLoaded = true;
+  bool isModelLoaded = false;
   bool isSmartWatchConnected = false;
   final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
   late Interpreter _interpreter;
@@ -38,6 +38,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void dispose() {
     _recorder.closeRecorder(); // Close the recorder session
     _audioStreamController.close(); // Close the stream controller
+    _interpreter.close(); // Close the TFLite interpreter
     super.dispose();
   }
 
@@ -65,11 +66,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     try {
       print("Loading model...");
       _interpreter = await Interpreter.fromAsset('models/Sound_Recognition.tflite');
-      isModelLoaded = true;
       print("Model loaded successfully");
+      setState(() {
+        isModelLoaded = true;
+      });
     } catch (e, stacktrace) {
       print("Error loading model: $e");
       print("Stacktrace: $stacktrace");
+      setState(() {
+        isModelLoaded = false;
+      });
     }
   }
 
@@ -123,7 +129,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       // Listen to the audio stream
       _audioStreamController.stream.listen((audioChunk) {
-        _processAudioChunk(audioChunk);
+        if (isModelLoaded) { // Ensure the model is loaded before processing
+          _processAudioChunk(audioChunk);
+        } else {
+          print("Model is not loaded yet. Skipping audio chunk processing.");
+        }
       });
     }
   }
@@ -137,30 +147,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _processAudioChunk(Uint8List audioChunk) async {
-    if (!isModelLoaded) {
+    if (!isModelLoaded || _interpreter == null) {
       print("Interpreter is not initialized.");
       return;
     }
 
-    // Preprocess audio data
-    var inputTensor = _preprocessAudio(audioChunk);
+    try {
+      // Preprocess audio data
+      var inputTensor = _preprocessAudio(audioChunk);
 
-    // Prepare output tensor
-    var outputTensor = List.filled(10, 0.0); // Adjust output size based on your model
+      // Prepare output tensor
+      var outputTensor = List<double>.filled(10, 0.0).reshape([1, 10]); // Adjust output size based on your model
 
-    // Run inference
-    _interpreter.run(inputTensor, outputTensor);
+      // Run inference
+      _interpreter!.run(inputTensor, outputTensor);
 
-    // Handle the prediction
-    _handlePrediction(outputTensor);
+      // Ensure outputTensor is of type List<List<double>>
+      List<List<double>> typedOutputTensor = outputTensor.cast<List<double>>();
+
+      // Handle the prediction
+      _handlePrediction(typedOutputTensor);
+    } catch (e) {
+      print("Error processing audio chunk: $e");
+    }
   }
 
-  List<double> _preprocessAudio(Uint8List audioChunk) {
-    // Normalize audio data (example)
-    return audioChunk.map((e) => e / 255.0).toList();
+  List<List<double>> _preprocessAudio(Uint8List audioChunk) {
+    // Convert Uint8List to List<double> and normalize
+    List<double> normalizedAudio = audioChunk.map((e) => e / 255.0).toList();
+
+    // Reshape to match the model's input shape (e.g., [1, audioLength])
+    return [normalizedAudio];
   }
 
-  void _handlePrediction(List<double> prediction) {
+  void _handlePrediction(List<List<double>> prediction) {
     // Example: print prediction or trigger notifications/vibrations
     print("Prediction: $prediction");
   }

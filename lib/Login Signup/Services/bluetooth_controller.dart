@@ -26,7 +26,6 @@ class BluetoothController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Request necessary permissions
   Future<bool> _requestPermissions() async {
     final status = await [
       Permission.bluetooth,
@@ -35,24 +34,23 @@ class BluetoothController extends ChangeNotifier {
       Permission.location,
     ].request();
 
-    return status[Permission.bluetooth]!.isGranted &&
-           status[Permission.bluetoothScan]!.isGranted &&
-           status[Permission.bluetoothConnect]!.isGranted &&
-           status[Permission.location]!.isGranted;
+    return status[Permission.bluetooth]?.isGranted == true &&
+        status[Permission.bluetoothScan]?.isGranted == true &&
+        status[Permission.bluetoothConnect]?.isGranted == true &&
+        status[Permission.location]?.isGranted == true;
   }
 
-  /// Start scanning for nearby Bluetooth devices
   Future<void> startScan() async {
     if (!await _requestPermissions()) {
       print("Bluetooth permissions not granted");
       return;
     }
 
-    scanResults.clear(); // Clear previous scan results
+    scanResults.clear();
     isScanning = true;
     notifyListeners();
 
-    FlutterBluePlus.startScan(timeout: const Duration(seconds: 10)); // Set timeout to 10 seconds
+    FlutterBluePlus.startScan(timeout: const Duration(seconds: 10));
 
     FlutterBluePlus.scanResults.listen((results) {
       scanResults = results;
@@ -62,18 +60,16 @@ class BluetoothController extends ChangeNotifier {
     });
   }
 
-  /// Stop scanning for devices
   void stopScan() {
     FlutterBluePlus.stopScan();
     isScanning = false;
     notifyListeners();
   }
 
-  /// Connect to a selected Bluetooth device
   Future<void> connectToDevice(BluetoothDevice device, BuildContext context) async {
-    if (connectedDevices.contains(device)) {
+    if (connectedDevices.any((d) => d.remoteId == device.remoteId)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Already connected to ${device.name}")),
+        SnackBar(content: Text("Already connected to ${device.platformName}")),
       );
       return;
     }
@@ -83,42 +79,48 @@ class BluetoothController extends ChangeNotifier {
       connectedDevices = await FlutterBluePlus.connectedDevices;
       notifyListeners();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Connected to ${device.name}")),
+        SnackBar(content: Text("Connected to ${device.platformName}")),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to connect to ${device.name}: $e")),
+        SnackBar(content: Text("Failed to connect to ${device.platformName}: $e")),
       );
     }
   }
 
-  /// Disconnect from a Bluetooth device
   Future<void> disconnectFromDevice(BluetoothDevice device, BuildContext context) async {
     try {
       await device.disconnect();
       connectedDevices = await FlutterBluePlus.connectedDevices;
       notifyListeners();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Disconnected from ${device.name}")),
+        SnackBar(content: Text("Disconnected from ${device.platformName}")),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to disconnect from ${device.name}: $e")),
+        SnackBar(content: Text("Failed to disconnect from ${device.platformName}: $e")),
       );
     }
   }
 
-  /// Toggle Bluetooth On/Off (Only works on Android)
   Future<void> turnBluetoothOn() async {
-    await FlutterBluePlus.turnOn();
-    isBluetoothOn = true;
-    notifyListeners();
+    try {
+      await FlutterBluePlus.turnOn();
+      isBluetoothOn = true;
+      notifyListeners();
+    } catch (e) {
+      print("Failed to turn on Bluetooth: $e");
+    }
   }
 
   Future<void> turnBluetoothOff() async {
-    await FlutterBluePlus.turnOff();
-    isBluetoothOn = false;
-    stopScan(); // Stop scanning when Bluetooth is turned off
-    notifyListeners();
+    try {
+      await FlutterBluePlus.turnOff();
+      isBluetoothOn = false;
+      stopScan();
+      notifyListeners();
+    } catch (e) {
+      print("Failed to turn off Bluetooth: $e");
+    }
   }
 }
