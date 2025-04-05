@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_sound/flutter_sound.dart';
@@ -9,6 +12,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../Login Signup/Screen/AccountManagementScreen.dart';
 import '../Login Signup/Screen/BluetoothSettingsScreen.dart';
+import '../Login Signup/Services/NotificationService.dart';
+import '../Login Signup/Services/bluetooth_controller_provider.dart';
 import 'Sound_settings/sound_settings.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -24,6 +29,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool isSmartWatchConnected = false;
   final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
   late Interpreter _interpreter;
+  late final NotificationService _notificationService;
 
   final StreamController<Uint8List> _audioStreamController = StreamController<Uint8List>();
   late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
@@ -36,27 +42,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   void dispose() {
-    _recorder.closeRecorder(); // Close the recorder session
-    _audioStreamController.close(); // Close the stream controller
-    _interpreter.close(); // Close the TFLite interpreter
+    _recorder.closeRecorder();
+    _audioStreamController.close();
+    _interpreter.close();
     super.dispose();
   }
 
   Future<void> _initialize() async {
+    _notificationService = NotificationService();
+
     await _initRecorder();
     await _loadModel();
     await _initializeNotifications();
-    _checkSmartWatchConnection();
+    await _notificationService.initialize();
+
+    _setupBluetoothConnectionListener();
   }
 
-  void _checkSmartWatchConnection() {
-    // Replace this logic with actual smartwatch connection check
-    Future.delayed(const Duration(seconds: 2), () {
-      setState(() {
-        isSmartWatchConnected = true; // Change this dynamically
-      });
-    });
+  void _setupBluetoothConnectionListener() {
+    final bluetoothController = ref.read(bluetoothControllerProvider.notifier);
+
+    bluetoothController.onDeviceConnected = (device) async {
+      final bluetoothController = ref.read(bluetoothControllerProvider.notifier);
+      bluetoothController.connectedDevices = await FlutterBluePlus.connectedDevices;
+
+      final devices = bluetoothController.connectedDevices;
+
+      if (devices.isNotEmpty) {
+        sendToWatch(devices.first);
+      } else {
+        print("❌ No connected smartwatch found");
+      }
+    };
   }
+
+  void _sendTestNotification() {
+    _showNotification("Test Alert", "This is a manual test notification.");
+  }
+
 
   Future<void> _initRecorder() async {
     await _recorder.openRecorder();
@@ -116,20 +139,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         isRecording = true;
       });
 
-      // Show notification when recording starts
       _showNotification("Recording Started", "Your app is running in the background");
 
-      // Start recording and stream data to the StreamController
       await _recorder.startRecorder(
-        codec: Codec.pcm16, // PCM codec for raw audio
-        sampleRate: 16000,  // Match your model's sample rate
-        numChannels: 1,     // Mono audio
-        toStream: _audioStreamController.sink, // Stream audio data
+        codec: Codec.pcm16,
+        sampleRate: 16000,
+        numChannels: 1,
+        toStream: _audioStreamController.sink,
       );
 
-      // Listen to the audio stream
       _audioStreamController.stream.listen((audioChunk) {
-        if (isModelLoaded) { // Ensure the model is loaded before processing
+        if (isModelLoaded) {
           _processAudioChunk(audioChunk);
         } else {
           print("Model is not loaded yet. Skipping audio chunk processing.");
@@ -153,19 +173,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     try {
-      // Preprocess audio data
       var inputTensor = _preprocessAudio(audioChunk);
+      var outputTensor = List<double>.filled(10, 0.0).reshape([1, 10]);
 
-      // Prepare output tensor
-      var outputTensor = List<double>.filled(10, 0.0).reshape([1, 10]); // Adjust output size based on your model
-
-      // Run inference
-      _interpreter!.run(inputTensor, outputTensor);
-
-      // Ensure outputTensor is of type List<List<double>>
+      _interpreter.run(inputTensor, outputTensor);
       List<List<double>> typedOutputTensor = outputTensor.cast<List<double>>();
-
-      // Handle the prediction
       _handlePrediction(typedOutputTensor);
     } catch (e) {
       print("Error processing audio chunk: $e");
@@ -173,21 +185,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   List<List<double>> _preprocessAudio(Uint8List audioChunk) {
-    // Convert Uint8List to List<double> and normalize
     List<double> normalizedAudio = audioChunk.map((e) => e / 255.0).toList();
-
-    // Reshape to match the model's input shape (e.g., [1, audioLength])
     return [normalizedAudio];
   }
 
   void _handlePrediction(List<List<double>> prediction) {
-    // Example: print prediction or trigger notifications/vibrations
     print("Prediction: $prediction");
   }
 
   Future<void> _showNotification(String title, String body) async {
-    const AndroidNotificationDetails androidNotificationDetails =
-    AndroidNotificationDetails(
+    const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
       'your_channel_id',
       'your_channel_name',
       channelDescription: 'your_channel_description',
@@ -205,6 +212,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  Future<void> sendToWatch(BluetoothDevice device) async {
+    try {
+      final services = await device.discoverServices();
+      for (var service in services) {
+        for (var char in service.characteristics) {
+          if (char.properties.write) {
+            await char.write(utf8.encode("Hello Watch!"), withoutResponse: true);
+            print("✅ Message sent to watch via ${char.uuid}");
+            return;
+          }
+        }
+      }
+      print("❌ No writable characteristic found");
+    } catch (e) {
+      print("❌ Error sending to watch: $e");
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -214,7 +240,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              // AppBar Row
               Padding(
                 padding: const EdgeInsets.only(top: 10),
                 child: Row(
@@ -252,8 +277,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (context) =>
-                            const AccountManagementScreen(),
+                            builder: (context) => const AccountManagementScreen(),
                           ),
                         );
                       },
@@ -269,6 +293,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const Spacer(),
               _recordButton(),
               const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  _notificationService.showNotification("HearMate", "🔔 Hello from HearMate");
+                },
+                child: const Text("Send Test Notification to Smartwatch Local"),
+              ),
+
+              ElevatedButton(
+                onPressed: () async {
+                  final bluetoothController = ref.read(bluetoothControllerProvider.notifier);
+                  bluetoothController.connectedDevices = await FlutterBluePlus.connectedDevices;
+
+                  final devices = bluetoothController.connectedDevices;
+
+                  if (devices.isNotEmpty) {
+                    sendToWatch(devices.first);
+                  } else {
+                    print("❌ No connected smartwatch found");
+                  }
+                },
+
+                child: const Text("Send Test Notification to Smartwatch"),
+              ),
               Center(
                 child: Text(isRecording ? "Listening" : "Start Listening"),
               ),
@@ -314,7 +361,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // AppBar Icon Button
   Widget _appBarIconButton({required VoidCallback onTap, required Icon icon}) {
     return InkWell(
       onTap: onTap,

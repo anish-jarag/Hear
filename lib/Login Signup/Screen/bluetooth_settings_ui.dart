@@ -37,8 +37,8 @@ class BluetoothSettingsUI extends StatelessWidget {
             ...bluetoothController.connectedDevices.map((device) {
               return ListTile(
                 leading: const Icon(Icons.bluetooth_connected),
-                title: Text(device.name.isNotEmpty ? device.name : "Unknown Device"),
-                subtitle: Text(device.id.toString()),
+                title: Text(device.platformName.isNotEmpty ? device.platformName : "Unknown Device"),
+                // subtitle: Text(device.id.toString()),
                 trailing: ElevatedButton(
                   onPressed: () {
                     bluetoothController.disconnectFromDevice(device, context);
@@ -68,8 +68,8 @@ class BluetoothSettingsUI extends StatelessWidget {
                   final result = bluetoothController.scanResults[index];
                   return ListTile(
                     leading: const Icon(Icons.bluetooth),
-                    title: Text(result.device.name.isNotEmpty ? result.device.name : "Unknown Device"),
-                    subtitle: Text(result.device.id.toString()),
+                    title: Text(result.device.platformName.isNotEmpty ? result.device.platformName : "Incompatible Device"),
+                    // subtitle: Text(result.device.id.toString()),
                     trailing: ElevatedButton(
                       onPressed: () {
                         bluetoothController.connectToDevice(result.device, context);

@@ -1,12 +1,20 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:hear_aid/Login Signup/Services/NotificationService.dart';
 
 class BluetoothController extends ChangeNotifier {
   bool isBluetoothOn = false;
   bool isScanning = false;
   List<ScanResult> scanResults = [];
   List<BluetoothDevice> connectedDevices = [];
+
+  // 🔌 Writable characteristic reference
+  BluetoothCharacteristic? writeCharacteristic;
+
+  Function(BluetoothDevice)? onDeviceConnected;
 
   BluetoothController() {
     initializeBluetooth();
@@ -78,9 +86,22 @@ class BluetoothController extends ChangeNotifier {
       await device.connect();
       connectedDevices = await FlutterBluePlus.connectedDevices;
       notifyListeners();
+
+      onDeviceConnected?.call(device);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Connected to ${device.platformName}")),
       );
+
+      NotificationService().showNotification(
+        "HearMate",
+        "HearMate is now connected.",
+      );
+
+
+      // 🔍 Discover services and find write characteristic
+      await discoverServices(device);
+
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Failed to connect to ${device.platformName}: $e")),
@@ -88,17 +109,54 @@ class BluetoothController extends ChangeNotifier {
     }
   }
 
+  Future<void> discoverServices(BluetoothDevice device) async {
+    List<BluetoothService> services = await device.discoverServices();
+    for (var service in services) {
+      print("🔹 Service: ${service.uuid}");
+
+      for (var characteristic in service.characteristics) {
+        print("   ↪ Characteristic: ${characteristic.uuid}");
+        print("     Properties: ${characteristic.properties}");
+
+        if (characteristic.properties.write || characteristic.properties.writeWithoutResponse) {
+          print("     ✨ This characteristic is writeable!");
+          // you can keep a reference to this characteristic
+        }
+      }
+    }
+  }
+
+  Future<void> sendToWatch(BluetoothDevice device) async {
+    try {
+      final services = await device.discoverServices();
+      for (var service in services) {
+        for (var char in service.characteristics) {
+          if (char.properties.write) {
+            await char.write(utf8.encode("🔔 Alert: Sound Detected!"), withoutResponse: true);
+            print("✅ Message sent to watch via ${char.uuid}");
+            return;
+          }
+        }
+      }
+      print("❌ No writable characteristic found");
+    } catch (e) {
+      print("❌ Error sending to watch: $e");
+    }
+  }
+
+
   Future<void> disconnectFromDevice(BluetoothDevice device, BuildContext context) async {
     try {
       await device.disconnect();
       connectedDevices = await FlutterBluePlus.connectedDevices;
       notifyListeners();
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Disconnected from ${device.platformName}")),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to disconnect from ${device.platformName}: $e")),
+        SnackBar(content: Text("Failed to disconnect: $e")),
       );
     }
   }

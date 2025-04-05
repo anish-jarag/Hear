@@ -1,13 +1,17 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:hear_aid/Login%20Signup/Screen/login.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // ✅ Import Riverpod
 import 'package:hear_aid/Login Signup/Screen/SplashScreen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await Firebase.initializeApp();
-    runApp(const MyApp());
+    runApp(
+      ProviderScope(
+        child: const MyApp(), // ✅ Wrap your app here
+      ),
+    );
   } catch (e) {
     print('Firebase initialization error: $e');
   }
@@ -20,7 +24,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const SplashScreen(), // Show SplashScreen first
+      home: const SplashScreen(), // ✅ Your splash screen stays the same
     );
   }
 }
