@@ -9,6 +9,7 @@ import 'package:tflite_flutter/tflite_flutter.dart';
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:vibration/vibration.dart';
 
 import '../Login Signup/Screen/AccountManagementScreen.dart';
 import '../Login Signup/Screen/BluetoothSettingsScreen.dart';
@@ -294,28 +295,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               _recordButton(),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   _notificationService.showNotification("HearMate", "🔔 Hello from HearMate");
+                  if (await Vibration.hasVibrator() ?? false) {
+                  Vibration.vibrate(duration: 100);  // 100ms vibration
+                  }
                 },
                 child: const Text("Send Test Notification to Smartwatch Local"),
               ),
 
-              ElevatedButton(
-                onPressed: () async {
-                  final bluetoothController = ref.read(bluetoothControllerProvider.notifier);
-                  bluetoothController.connectedDevices = await FlutterBluePlus.connectedDevices;
-
-                  final devices = bluetoothController.connectedDevices;
-
-                  if (devices.isNotEmpty) {
-                    sendToWatch(devices.first);
-                  } else {
-                    print("❌ No connected smartwatch found");
-                  }
-                },
-
-                child: const Text("Send Test Notification to Smartwatch"),
-              ),
               Center(
                 child: Text(isRecording ? "Listening" : "Start Listening"),
               ),
