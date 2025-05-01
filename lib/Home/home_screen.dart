@@ -198,15 +198,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const Spacer(),
               _recordButton(),
               const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () async {
-                  _notificationService.showNotification("HearMate", "🔔 Hello from HearMate");
-                  if (await Vibration.hasVibrator() ?? false) {
-                    Vibration.vibrate(duration: 100);
-                  }
-                },
-                child: const Text("Send Test Notification to Smartwatch Local"),
-              ),
+              // ElevatedButton(
+              //   onPressed: () async {
+              //     _notificationService.showNotification("HearMate", "🔔 Hello from HearMate");
+              //     if (await Vibration.hasVibrator() ?? false) {
+              //       Vibration.vibrate(duration: 100);
+              //     }
+              //   },
+              //   child: const Text("Send Test Notification to Smartwatch Local"),
+              // ),
               Center(
                 child: Text(isRecording ? "Listening" : "Start Listening"),
               ),
