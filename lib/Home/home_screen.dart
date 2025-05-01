@@ -1,13 +1,12 @@
 import 'dart:convert';
+import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_sound/flutter_sound.dart';
-import 'package:tflite_flutter/tflite_flutter.dart';
-import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:vibration/vibration.dart';
 
@@ -26,12 +25,10 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool isRecording = false;
-  bool isModelLoaded = false;
   bool isSmartWatchConnected = false;
-  final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
-  late Interpreter _interpreter;
-  late final NotificationService _notificationService;
 
+  final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
+  late final NotificationService _notificationService;
   final StreamController<Uint8List> _audioStreamController = StreamController<Uint8List>();
   late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
 
@@ -45,7 +42,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void dispose() {
     _recorder.closeRecorder();
     _audioStreamController.close();
-    _interpreter.close();
     super.dispose();
   }
 
@@ -53,7 +49,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _notificationService = NotificationService();
 
     await _initRecorder();
-    await _loadModel();
     await _initializeNotifications();
     await _notificationService.initialize();
 
@@ -64,9 +59,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final bluetoothController = ref.read(bluetoothControllerProvider.notifier);
 
     bluetoothController.onDeviceConnected = (device) async {
-      final bluetoothController = ref.read(bluetoothControllerProvider.notifier);
       bluetoothController.connectedDevices = await FlutterBluePlus.connectedDevices;
-
       final devices = bluetoothController.connectedDevices;
 
       if (devices.isNotEmpty) {
@@ -77,30 +70,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     };
   }
 
-  void _sendTestNotification() {
-    _showNotification("Test Alert", "This is a manual test notification.");
-  }
-
-
   Future<void> _initRecorder() async {
     await _recorder.openRecorder();
-  }
-
-  Future<void> _loadModel() async {
-    try {
-      print("Loading model...");
-      _interpreter = await Interpreter.fromAsset('models/Sound_Recognition.tflite');
-      print("Model loaded successfully");
-      setState(() {
-        isModelLoaded = true;
-      });
-    } catch (e, stacktrace) {
-      print("Error loading model: $e");
-      print("Stacktrace: $stacktrace");
-      setState(() {
-        isModelLoaded = false;
-      });
-    }
   }
 
   Future<void> _initializeNotifications() async {
@@ -108,6 +79,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     const AndroidInitializationSettings initializationSettingsAndroid =
     AndroidInitializationSettings('@mipmap/ic_launcher');
+
     final InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
     );
@@ -118,27 +90,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _requestPermission() async {
     final status = await Permission.microphone.request();
 
-    if (status.isGranted) {
-      print("Microphone permission granted");
-    } else if (status.isDenied) {
-      print("Microphone permission denied");
-    } else if (status.isPermanentlyDenied) {
+    if (status.isPermanentlyDenied) {
       openAppSettings();
+    } else if (!status.isGranted) {
+      print("Microphone permission denied");
     }
   }
 
   Future<void> _startRecording() async {
-    if (!isModelLoaded) {
-      print("Model is not loaded yet.");
-      return;
-    }
-
     await _requestPermission();
 
     if (await Permission.microphone.isGranted) {
-      setState(() {
-        isRecording = true;
-      });
+      setState(() => isRecording = true);
 
       _showNotification("Recording Started", "Your app is running in the background");
 
@@ -150,67 +113,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
 
       _audioStreamController.stream.listen((audioChunk) {
-        if (isModelLoaded) {
-          _processAudioChunk(audioChunk);
-        } else {
-          print("Model is not loaded yet. Skipping audio chunk processing.");
-        }
+        print("Audio chunk received (${audioChunk.length} bytes)"); // Placeholder
       });
     }
   }
 
   Future<void> _stopRecording() async {
     await _recorder.stopRecorder();
-    setState(() {
-      isRecording = false;
-    });
+    setState(() => isRecording = false);
     print("Recording stopped.");
   }
 
-  void _processAudioChunk(Uint8List audioChunk) async {
-    if (!isModelLoaded || _interpreter == null) {
-      print("Interpreter is not initialized.");
-      return;
-    }
-
-    try {
-      var inputTensor = _preprocessAudio(audioChunk);
-      var outputTensor = List<double>.filled(10, 0.0).reshape([1, 10]);
-
-      _interpreter.run(inputTensor, outputTensor);
-      List<List<double>> typedOutputTensor = outputTensor.cast<List<double>>();
-      _handlePrediction(typedOutputTensor);
-    } catch (e) {
-      print("Error processing audio chunk: $e");
-    }
-  }
-
-  List<List<double>> _preprocessAudio(Uint8List audioChunk) {
-    List<double> normalizedAudio = audioChunk.map((e) => e / 255.0).toList();
-    return [normalizedAudio];
-  }
-
-  void _handlePrediction(List<List<double>> prediction) {
-    print("Prediction: $prediction");
-  }
-
   Future<void> _showNotification(String title, String body) async {
-    const AndroidNotificationDetails androidNotificationDetails = AndroidNotificationDetails(
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'your_channel_id',
       'your_channel_name',
       channelDescription: 'your_channel_description',
       importance: Importance.high,
       priority: Priority.high,
     );
-    const NotificationDetails notificationDetails =
-    NotificationDetails(android: androidNotificationDetails);
 
-    await flutterLocalNotificationsPlugin.show(
-      0,
-      title,
-      body,
-      notificationDetails,
-    );
+    const NotificationDetails notificationDetails = NotificationDetails(android: androidDetails);
+
+    await flutterLocalNotificationsPlugin.show(0, title, body, notificationDetails);
   }
 
   Future<void> sendToWatch(BluetoothDevice device) async {
@@ -231,7 +156,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -247,27 +171,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _appBarIconButton(
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const SoundSettingsScreen(),
-                          ),
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.speaker,
-                        size: 30,
-                        color: Colors.blue,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SoundSettingsScreen()),
                       ),
+                      icon: const Icon(Icons.speaker, size: 30, color: Colors.blue),
                     ),
                     _appBarIconButton(
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => BluetoothSettingsScreen(),
-                          ),
-                        );
-                      },
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => BluetoothSettingsScreen()),
+                      ),
                       icon: Icon(
                         Icons.bluetooth,
                         size: 30,
@@ -275,18 +187,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ),
                     _appBarIconButton(
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const AccountManagementScreen(),
-                          ),
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.grid_view_rounded,
-                        size: 30,
-                        color: Colors.blue,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const AccountManagementScreen()),
                       ),
+                      icon: const Icon(Icons.grid_view_rounded, size: 30, color: Colors.blue),
                     ),
                   ],
                 ),
@@ -298,12 +202,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 onPressed: () async {
                   _notificationService.showNotification("HearMate", "🔔 Hello from HearMate");
                   if (await Vibration.hasVibrator() ?? false) {
-                  Vibration.vibrate(duration: 100);  // 100ms vibration
+                    Vibration.vibrate(duration: 100);
                   }
                 },
                 child: const Text("Send Test Notification to Smartwatch Local"),
               ),
-
               Center(
                 child: Text(isRecording ? "Listening" : "Start Listening"),
               ),
@@ -319,11 +222,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Center(
       child: GestureDetector(
         onTap: () {
-          if (isRecording) {
-            _stopRecording();
-          } else {
-            _startRecording();
-          }
+          isRecording ? _stopRecording() : _startRecording();
         },
         child: Container(
           width: 180,
@@ -332,11 +231,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             shape: BoxShape.circle,
             color: isRecording ? Colors.red : Colors.blue,
             boxShadow: const [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 10,
-                spreadRadius: 5,
-              ),
+              BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 5),
             ],
           ),
           child: Icon(
