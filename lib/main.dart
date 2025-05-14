@@ -1,15 +1,20 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // ✅ Import Riverpod
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hear_aid/Login Signup/Screen/SplashScreen.dart';
+import 'package:hear_aid/ML/service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await confirmAssetExists();
+  await debugModel();
+
   try {
     await Firebase.initializeApp();
     runApp(
       ProviderScope(
-        child: const MyApp(), // ✅ Wrap your app here
+        child: const MyApp(),
       ),
     );
   } catch (e) {
@@ -24,7 +29,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const SplashScreen(), // ✅ Your splash screen stays the same
+      home: const SplashScreen(),
     );
   }
 }
