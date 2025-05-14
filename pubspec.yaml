@@ -28,6 +28,7 @@ dependencies:
   tflite_flutter_helper_plus: ^0.0.2
   flutter_local_notifications: ^18.0.1
   flutter_blue_plus: ^1.35.2
+  lottie: ^3.3.1
 
 
 dev_dependencies:
@@ -41,4 +42,9 @@ flutter:
 
   assets:
    - images/
+<<<<<<< HEAD
    - assets/
+=======
+   - models/
+   - assets/lottie/
+>>>>>>> 271b37ac00ab892e46b37789d03cd15940dabfe2

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hear_aid/Login%20Signup/Screen/NameInput.dart';
-
+import 'package:lottie/lottie.dart';
 void main() {
   runApp(MyApp());
 }
@@ -29,19 +29,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       "title": "Sound Recognition and Alerts",
       "description":
       "Get real-time alerts for background sounds like alarms, doorbells, and more.",
-      "image": "images/sound_alerts.png", // Add your image in assets
+      "image": "assets/lottie/marginalia-man-sleeping-in-bed-1.json",
+       // Add your image in assets
     },
     {
       "title": "Voice Identification",
       "description":
       "Recognizes specific voices of family members for personalized communication.",
-      "image": "images/voice_id.png", // Add your image in assets
+      "image": "assets/lottie/pablita-face-id.json", // Add your image in assets
     },
     {
       "title": "Smart Device Integration",
       "description":
       "Connect seamlessly with smartwatches and other smart devices.",
-      "image": "images/smart_devices.png", // Add your image in assets
+      "image": "assets/lottie/urban-smart-watch.json", // Add your image in assets
     },
 
   ];
@@ -175,7 +176,7 @@ class OnboardingPage extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Expanded(
-            child: Image.asset(image, fit: BoxFit.contain),
+            child: Lottie.asset(image, fit: BoxFit.contain),
           ),
           SizedBox(height: 20),
           Text(
