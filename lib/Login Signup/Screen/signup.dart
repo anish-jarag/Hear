@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:hear_aid/Login%20Signup/Screen/NameInput.dart';
+import './NameInput.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:hear_aid/Login%20Signup/Screen/sound_on_start.dart';
+import './sound_on_start.dart';
 import '../Widgets/button.dart';
 import '../Widgets/text_field.dart';
 import 'login.dart';

@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hear_aid/Login%20Signup/Screen/sound_on_start.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../../Home/home_screen.dart';
 
 class NameInputScreen extends StatefulWidget {
   const NameInputScreen({super.key});
