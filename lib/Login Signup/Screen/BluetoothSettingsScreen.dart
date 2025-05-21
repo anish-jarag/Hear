@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../Services/bluetooth_controller.dart';
 import 'bluetooth_settings_ui.dart';
 
-class BluetoothSettingsScreen extends ConsumerStatefulWidget  {
+class BluetoothSettingsScreen extends StatefulWidget {
   @override
-  ConsumerState<BluetoothSettingsScreen> createState() => _BluetoothSettingsScreenState();}
+  State<BluetoothSettingsScreen> createState() => _BluetoothSettingsScreenState();
+}
 
-class _BluetoothSettingsScreenState extends ConsumerState<BluetoothSettingsScreen> {
+class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
   final BluetoothController _bluetoothController = BluetoothController();
 
   @override

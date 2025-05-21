@@ -112,47 +112,37 @@ class BluetoothController extends ChangeNotifier {
   Future<void> discoverServices(BluetoothDevice device) async {
     List<BluetoothService> services = await device.discoverServices();
     for (var service in services) {
+      print("🔹 Service: ${service.uuid}");
+
       for (var characteristic in service.characteristics) {
+        print("   ↪ Characteristic: ${characteristic.uuid}");
+        print("     Properties: ${characteristic.properties}");
+
         if (characteristic.properties.write || characteristic.properties.writeWithoutResponse) {
-          writeCharacteristic = characteristic;
-          print(" Writable characteristic found: ${characteristic.uuid}");
-          return;
+          print("     ✨ This characteristic is writeable!");
+          // you can keep a reference to this characteristic
         }
       }
     }
-    print("❌ No writable characteristic found during discovery.");
   }
-
 
   Future<void> sendToWatch(BluetoothDevice device) async {
     try {
-      if (writeCharacteristic != null) {
-        await writeCharacteristic!.write(
-          utf8.encode("🔔 Alert: Sound Detected!"),
-          withoutResponse: true,
-        );
-        print("✅ Message sent using stored characteristic");
-        return;
+      final services = await device.discoverServices();
+      for (var service in services) {
+        for (var char in service.characteristics) {
+          if (char.properties.write) {
+            await char.write(utf8.encode("🔔 Alert: Sound Detected!"), withoutResponse: true);
+            print("✅ Message sent to watch via ${char.uuid}");
+            return;
+          }
+        }
       }
-
-      // fallback: discover if not set
-      print("🔁 Re-discovering services since characteristic not set.");
-      await discoverServices(device);
-
-      if (writeCharacteristic != null) {
-        await writeCharacteristic!.write(
-          utf8.encode("🔔 Alert: Sound Detected!"),
-          withoutResponse: true,
-        );
-        print("✅ Message sent after rediscovery");
-      } else {
-        print("❌ Still no writable characteristic found");
-      }
+      print("❌ No writable characteristic found");
     } catch (e) {
       print("❌ Error sending to watch: $e");
     }
   }
-
 
 
   Future<void> disconnectFromDevice(BluetoothDevice device, BuildContext context) async {

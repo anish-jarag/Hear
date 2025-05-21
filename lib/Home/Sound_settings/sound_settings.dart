@@ -12,6 +12,7 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
   // Variables for each sound option
   final List<String> sounds = [
     "Infant Crying",
+    "Dog Barking",
     "Crack Sound",
     "Fire alarm",
     "Gunshot",
@@ -124,6 +125,8 @@ class _SoundSettingsScreenState extends State<SoundSettingsScreen> {
     switch (sound) {
       case "Infant Crying":
         return Icons.child_care;
+      case "Dog Barking":
+        return Icons.pets;
       case "Crack Sound":
         return Icons.construction;
       case "Fire alarm":

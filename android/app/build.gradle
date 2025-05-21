@@ -7,13 +7,13 @@ plugins {
 }
 
 android {
-    namespace "com.hear_aid.hear_aid"
-    compileSdkVersion 35
-    ndkVersion flutter.ndkVersion
+    namespace = "com.hear_aid.hear_aid"
+    compileSdk = 34
+    ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
@@ -21,16 +21,16 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.hear_aid.hear_aid"
+        applicationId = "com.hear_aid.hear_aid"
         minSdkVersion 24
-        targetSdkVersion 35
-        versionCode flutter.versionCode
-        versionName flutter.versionName
+        targetSdkVersion 34
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
     }
 
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            signingConfig = signingConfigs.debug
         }
     }
 }
